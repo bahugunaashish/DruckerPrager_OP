@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Drucker-Prager Triaxial Compression Test - Autonomous Optimizer
+Drucker-Prager Triaxial Compression Test- hardening parameters optimizer
 Features: Native Tkinter GUI, Interactive Plot, Continuous Calibration
 by Ashish Bahuguna 
 Basic units: kPa and meters.
