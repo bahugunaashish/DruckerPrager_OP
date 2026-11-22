@@ -34,7 +34,7 @@ with st.sidebar:
         max_eps = st.number_input('Maximum axial strain (%)', min_value=0.01, max_value=100.0, value=15.0)
         steps = st.number_input('Displacement steps', min_value=1, max_value=10000, value=1000, step=100)
         mode = st.selectbox('Run mode', ['Calibrate hardening parameters', 'Run one simulation'])
-        max_iter = st.number_input('Maximum calibration iterations', min_value=1, max_value=200, value=25, help='Calibration stops at this limit if no match is found.')
+        max_iter = st.number_input('Maximum calibration iterations', min_value=1, max_value=1000, value=25, help='Calibration stops at this limit if no match is found.')
         run = st.form_submit_button('Run analysis', type='primary', use_container_width=True)
 
 params = dict(E=E, nu=nu, c=c, phi=phi, patm=patm, mDen=mDen, Kinf=Kinf, Ko=Ko, delta1=delta1, H=H, theta=theta, delta2=delta2, max_eps=max_eps, steps=steps)
