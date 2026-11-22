@@ -73,11 +73,11 @@ where `p₀` is the confining pressure.
 | Poisson's Ratio ν | `nu` | 0.3 | Range: 0 – 0.49 |
 | Cohesion c [kPa] | `c` | 4.5 | Effective cohesion |
 | Friction Angle φ [°] | `phi` | 35 | Internal friction angle |
-| Isotropic Hard. Kinf [kPa] | `Kinf` | 222 | Maximum isotropic hardening (max 1000) |
+| Isotropic Hard. Kinf [kPa] | `Kinf` | 100 | Maximum isotropic hardening (max 1000) |
 | Isotropic Hard. Ko [kPa] | `Ko` | 20 | Initial isotropic hardening (max 1000) |
-| δ₁ (hardening rate) | `delta1` | 200 | Isotropic hardening rate (max 1000) |
+| δ₁ (hardening rate) | `delta1` | 350 | Isotropic hardening rate (max 1000) |
 | Kinematic Hard. H [kPa] | `H` | 500 | Kinematic hardening modulus ≥ 0 |
-| θ (hardening mix) | `theta` | 0.2 | 0 = pure kinematic, 1 = pure isotropic |
+| θ (hardening mix) | `theta` | 0.3 | 0 = pure kinematic, 1 = pure isotropic |
 | δ₂ (tension softening) | `delta2` | 0 | Tension softening parameter |
 | Mass Density ρ [Mg/m³] | `mDen` | 1.964 | Bulk mass density |
 | Confining Pressure p [kPa] | `patm` | 100 | Hydrostatic confining pressure |
@@ -143,7 +143,7 @@ Python 3.8+ is recommended. Tkinter is included with most Python distributions.
 ### Running the App
 
 ```bash
-python drucker_prager_optimizer.py
+python main.py
 ```
 
 ### Typical Workflow
@@ -151,7 +151,7 @@ python drucker_prager_optimizer.py
 1. Set your soil's elastic and strength parameters (`E`, `ν`, `c`, `φ`)
 2. Set the confining pressure (`patm`) matching your lab test
 3. Leave hardening parameters at defaults or provide an initial estimate
-4. Click **Run Autonomous Loop**
+4. Click **Run Optimizer**
 5. Watch the optimizer iterate — the plot and log update live
 6. When convergence is reached, read the calibrated `Kinf`, `Ko`, `δ₁` values from the input panel
 
