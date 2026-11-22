@@ -65,57 +65,6 @@ where `p₀` is the confining pressure.
 
 ---
 
-## ⚙️ Parameters
-
-| Label | Key | Default | Description |
-|---|---|---|---|
-| Young's Modulus E [kPa] | `E` | 50000 | Elastic modulus |
-| Poisson's Ratio ν | `nu` | 0.3 | Range: 0 – 0.49 |
-| Cohesion c [kPa] | `c` | 4.5 | Effective cohesion |
-| Friction Angle φ [°] | `phi` | 35 | Internal friction angle |
-| Isotropic Hard. Kinf [kPa] | `Kinf` | 222 | Maximum isotropic hardening (max 1000) |
-| Isotropic Hard. Ko [kPa] | `Ko` | 20 | Initial isotropic hardening (max 1000) |
-| δ₁ (hardening rate) | `delta1` | 200 | Isotropic hardening rate (max 1000) |
-| Kinematic Hard. H [kPa] | `H` | 500 | Kinematic hardening modulus ≥ 0 |
-| θ (hardening mix) | `theta` | 0.2 | 0 = pure kinematic, 1 = pure isotropic |
-| δ₂ (tension softening) | `delta2` | 0 | Tension softening parameter |
-| Mass Density ρ [Mg/m³] | `mDen` | 1.964 | Bulk mass density |
-| Confining Pressure p [kPa] | `patm` | 100 | Hydrostatic confining pressure |
-| Max Axial Strain [%] | `max_eps` | 15 | Target axial strain |
-| Analysis Steps | `steps` | 1000 | Displacement-control steps |
-
-### Optimization Target Parameters
-
-The loop autonomously adjusts **`Kinf`**, **`Ko`**, and **`δ₁`** only. All other parameters are user-controlled and held fixed during calibration.
-
----
-
-## 🔄 Optimization Algorithm
-
-The optimizer runs a feedback loop comparing the simulated peak deviatoric stress `q_peak` to the Mohr-Coulomb theoretical value `qf`:
-
-```
-diff = q_peak − qf
-```
-
-**Adjustment logic per iteration:**
-
-| Condition | Action |
-|---|---|
-| `diff < 0` (undershoot) | Increase `Kinf` (+40), `Ko` (+2), `δ₁` (+10) |
-| `diff > tolerance` (overshoot) | Decrease `Kinf` (−20), `δ₁` (−10) |
-| Stress OK, strain < 2% | Decrease `δ₁` (−25), `Ko` (−2); increase `Kinf` (+5) |
-| Stress OK, strain > 6% | Increase `δ₁` (+25), `Ko` (+2); decrease `Kinf` (−5) |
-| Simulation failure | Increase `Ko` (+5), `Kinf` (+10) for stability |
-
-All three parameters are clamped to `[0, 1000]` after every update. The plot is cleared every 25 iterations to maintain readability.
-
-**Convergence** is declared when:
-- `|q_peak − qf| ≤ 1.0 kPa`, **AND**
-- `2.0% ≤ peak_strain ≤ 6.0%`
-
----
-
 ## 🗂️ Output Files
 
 All simulation outputs are written to `CTC_GUI_Output/` in the working directory:
