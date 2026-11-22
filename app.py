@@ -45,9 +45,13 @@ with st.sidebar:
         steps = st.number_input('Displacement steps', min_value=1, max_value=10000, value=1000, step=100)
         mode = st.selectbox('Run mode', ['Calibrate hardening parameters', 'Run one simulation'])
         max_iter = st.number_input('Maximum calibration iterations', min_value=1, max_value=1000, value=25, help='Calibration stops at this limit if no match is found.')
+        st.subheader('Calibration criteria')
+        strain_min = st.number_input('Minimum peak axial strain (%)', min_value=0.0, value=2.0, step=0.1)
+        strain_max = st.number_input('Maximum peak axial strain (%)', min_value=0.0, value=6.0, step=0.1)
+        stress_tolerance = st.number_input('Peak stress tolerance (kPa)', min_value=0.0, value=1.0, step=0.1, help='Maximum absolute difference between simulated peak stress and the target.')
         run = st.form_submit_button('Run analysis', type='primary', use_container_width=True)
 
-def draw_error_chart(history):
+def draw_error_chart(history, tolerance):
     """Plot signed stress difference for each successfully completed iteration."""
     successful = [row for row in history if row.get('difference_kPa') is not None]
     if not successful:
@@ -56,7 +60,7 @@ def draw_error_chart(history):
     ax.plot([row['iteration'] for row in successful],
             [row['difference_kPa'] for row in successful], marker='o', markersize=3, linewidth=1.4)
     ax.axhline(0, color='#333333', linewidth=0.9)
-    ax.axhspan(-1, 1, color='#45a36b', alpha=0.18, label='Stress tolerance ±1 kPa')
+    ax.axhspan(-tolerance, tolerance, color='#45a36b', alpha=0.18, label=f'Stress tolerance ±{tolerance:g} kPa')
     ax.set(xlabel='Iteration', ylabel='Peak stress − target stress (kPa)')
     ax.grid(alpha=.2)
     ax.legend(fontsize=8)
@@ -68,7 +72,13 @@ def draw_error_chart(history):
 params = dict(E=E, nu=nu, c=c, phi=phi, patm=patm, mDen=mDen, Kinf=Kinf, Ko=Ko, delta1=delta1, H=H, theta=theta, delta2=delta2, max_eps=max_eps, steps=steps)
 sin_phi = math.sin(math.radians(phi))
 qf = (c / math.tan(math.radians(phi)) + patm) * 2 * sin_phi / (1 - sin_phi)
-st.info(f'Mohr–Coulomb target peak: **{qf:.2f} kPa**. Calibration requires a stress difference ≤ 1 kPa and a peak strain between 2% and 6%.')
+st.info(f'Mohr–Coulomb target peak: **{qf:.2f} kPa**. Calibration requires an absolute stress difference ≤ {stress_tolerance:g} kPa and a peak strain from {strain_min:g}% to {strain_max:g}%.')
+
+if run and mode.startswith('Calibrate') and strain_min > strain_max:
+    st.error('Minimum peak strain must not exceed maximum peak strain.')
+    run = False
+if run and mode.startswith('Calibrate') and strain_min > max_eps:
+    st.warning('The minimum peak strain is greater than the maximum axial strain setting; the requested range may not be reached.')
 
 if run:
     history, curves = [], []
@@ -107,27 +117,27 @@ if run:
         if mode.startswith('Calibrate'):
             with error_placeholder.container():
                 st.subheader('Stress difference by iteration')
-                draw_error_chart(history)
+                draw_error_chart(history, stress_tolerance)
         if mode == 'Run one simulation':
             status = 'Single simulation completed.'
             break
-        if abs(diff) <= 1 and 2 <= strain <= 6:
+        if abs(diff) <= stress_tolerance and strain_min <= strain <= strain_max:
             status = f'Calibration converged at iteration {iteration}.'
             break
         # Same rule ordering and increments as the desktop application.
         if diff < 0:
             params['Kinf'] += 40; params['Ko'] += 2; params['delta1'] += 10
-        elif diff > 1:
+        elif diff > stress_tolerance:
             params['Kinf'] -= 20; params['delta1'] -= 10
-        elif strain < 2:
+        elif strain < strain_min:
             params['delta1'] -= 25; params['Ko'] -= 2; params['Kinf'] += 5
-        elif strain > 6:
+        elif strain > strain_max:
             params['delta1'] += 25; params['Ko'] += 2; params['Kinf'] -= 5
         for key in ('Kinf', 'Ko', 'delta1'):
             params[key] = max(0.0, min(params[key], 1000.0))
     error_placeholder.empty()
     progress.progress(1.0, text='Analysis finished')
-    st.session_state['results'] = dict(status=status, history=history, curves=curves, qf=qf, inputs=dict(E=E, nu=nu, c=c, phi=phi, patm=patm, mDen=mDen, Kinf=Kinf, Ko=Ko, delta1=delta1, H=H, theta=theta, delta2=delta2, max_eps=max_eps, steps=steps), mode=mode)
+    st.session_state['results'] = dict(status=status, history=history, curves=curves, qf=qf, inputs=dict(E=E, nu=nu, c=c, phi=phi, patm=patm, mDen=mDen, Kinf=Kinf, Ko=Ko, delta1=delta1, H=H, theta=theta, delta2=delta2, max_eps=max_eps, steps=steps, strain_min=strain_min, strain_max=strain_max, stress_tolerance=stress_tolerance, max_iter=int(max_iter)), mode=mode)
 
 if 'results' in st.session_state:
     data = st.session_state['results']
@@ -154,8 +164,8 @@ if 'results' in st.session_state:
         st.download_button('Download last stress–strain curve (CSV)', curve_df.to_csv(index=False).encode(), 'stress_strain.csv', 'text/csv')
     if data['mode'].startswith('Calibrate') and any(row.get('difference_kPa') is not None for row in data['history']):
         st.subheader('Stress difference by iteration')
-        st.caption('Positive values exceed the target; negative values fall below it. Failed iterations are omitted. Matching the stress tolerance alone does not establish convergence: the peak strain must also be between 2% and 6%.')
-        draw_error_chart(data['history'])
+        st.caption(f"Positive values exceed the target; negative values fall below it. Failed iterations are omitted. Convergence also requires a peak strain from {data['inputs'].get('strain_min', 2):g}% to {data['inputs'].get('strain_max', 6):g}%.")
+        draw_error_chart(data['history'], data['inputs'].get('stress_tolerance', 1.0))
     if data['history']:
         st.subheader('Iteration history')
         table = pd.DataFrame(data['history'])
