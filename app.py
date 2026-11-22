@@ -69,6 +69,32 @@ def draw_error_chart(history, tolerance):
     plt.close(fig)
 
 
+def draw_hardening_chart(history):
+    """Show the parameters used in each attempted iteration."""
+    if not history:
+        return
+    iterations = [row['iteration'] for row in history]
+    fig, axes = plt.subplots(3, 1, figsize=(9, 6.5), sharex=True)
+    for ax, (key, label, color) in zip(axes, [
+        ('Kinf', 'Kinf (kPa)', '#2563a6'),
+        ('Ko', 'Ko (kPa)', '#d07828'),
+        ('delta1', 'δ₁', '#27805c'),
+    ]):
+        values = [row[key] for row in history]
+        ax.plot(iterations, values, color=color, marker='o', markersize=2.5, linewidth=1.2)
+        failed = [row for row in history if row['status'] == 'Analysis failed']
+        if failed:
+            ax.scatter([row['iteration'] for row in failed], [row[key] for row in failed],
+                       marker='x', color='#bd3131', s=30, zorder=3, label='Failed analysis')
+            ax.legend(fontsize=8)
+        ax.set_ylabel(label)
+        ax.grid(alpha=.2)
+    axes[-1].set_xlabel('Iteration')
+    fig.tight_layout()
+    st.pyplot(fig)
+    plt.close(fig)
+
+
 params = dict(E=E, nu=nu, c=c, phi=phi, patm=patm, mDen=mDen, Kinf=Kinf, Ko=Ko, delta1=delta1, H=H, theta=theta, delta2=delta2, max_eps=max_eps, steps=steps)
 sin_phi = math.sin(math.radians(phi))
 qf = (c / math.tan(math.radians(phi)) + patm) * 2 * sin_phi / (1 - sin_phi)
@@ -84,6 +110,7 @@ if run:
     history, curves = [], []
     placeholder = st.empty()
     error_placeholder = st.empty()
+    hardening_placeholder = st.empty()
     progress = st.progress(0, text='Starting analysis')
     status = 'Iteration limit reached without satisfying both calibration criteria.'
     limit = int(max_iter) if mode.startswith('Calibrate') else 1
@@ -101,6 +128,10 @@ if run:
         if not result['success']:
             row.update(peak_kPa=None, peak_strain_pct=None, difference_kPa=None, status='Analysis failed')
             history.append(row)
+            if mode.startswith('Calibrate'):
+                with hardening_placeholder.container():
+                    st.subheader('Hardening parameters by iteration')
+                    draw_hardening_chart(history)
             if mode == 'Run one simulation':
                 status = 'Simulation failed. Check the inputs and try again.'
                 break
@@ -118,6 +149,9 @@ if run:
             with error_placeholder.container():
                 st.subheader('Stress difference by iteration')
                 draw_error_chart(history, stress_tolerance)
+            with hardening_placeholder.container():
+                st.subheader('Hardening parameters by iteration')
+                draw_hardening_chart(history)
         if mode == 'Run one simulation':
             status = 'Single simulation completed.'
             break
@@ -136,6 +170,7 @@ if run:
         for key in ('Kinf', 'Ko', 'delta1'):
             params[key] = max(0.0, min(params[key], 1000.0))
     error_placeholder.empty()
+    hardening_placeholder.empty()
     progress.progress(1.0, text='Analysis finished')
     st.session_state['results'] = dict(status=status, history=history, curves=curves, qf=qf, inputs=dict(E=E, nu=nu, c=c, phi=phi, patm=patm, mDen=mDen, Kinf=Kinf, Ko=Ko, delta1=delta1, H=H, theta=theta, delta2=delta2, max_eps=max_eps, steps=steps, strain_min=strain_min, strain_max=strain_max, stress_tolerance=stress_tolerance, max_iter=int(max_iter)), mode=mode)
 
@@ -166,6 +201,10 @@ if 'results' in st.session_state:
         st.subheader('Stress difference by iteration')
         st.caption(f"Positive values exceed the target; negative values fall below it. Failed iterations are omitted. Convergence also requires a peak strain from {data['inputs'].get('strain_min', 2):g}% to {data['inputs'].get('strain_max', 6):g}%.")
         draw_error_chart(data['history'], data['inputs'].get('stress_tolerance', 1.0))
+    if data['mode'].startswith('Calibrate') and data['history']:
+        st.subheader('Hardening parameters by iteration')
+        st.caption('Values used in each attempted simulation. Red crosses mark failed analyses.')
+        draw_hardening_chart(data['history'])
     if data['history']:
         st.subheader('Iteration history')
         table = pd.DataFrame(data['history'])
