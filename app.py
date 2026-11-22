@@ -51,6 +51,26 @@ with st.sidebar:
         stress_tolerance = st.number_input('Peak stress tolerance (kPa)', min_value=0.0, value=1.0, step=0.1, help='Maximum absolute difference between simulated peak stress and the target.')
         run = st.form_submit_button('Run analysis', type='primary', use_container_width=True)
 
+def draw_stress_strain_chart(curves, target):
+    """Display the most recent successful curves and the target stress."""
+    if not curves:
+        return
+    latest_iteration = curves[-1][0]
+    fig, ax = plt.subplots(figsize=(9, 4.8))
+    for it, curve in curves[-10:]:
+        ax.plot(curve['strain'], curve['stress'],
+                alpha=1 if it == latest_iteration else .35,
+                linewidth=2 if it == latest_iteration else 1,
+                label=f'Iteration {it}')
+    ax.axhline(target, color='#cc4b4b', linestyle='--', label='Mohr–Coulomb target')
+    ax.set(xlabel='Axial strain (%)', ylabel='Deviatoric stress (kPa)')
+    ax.grid(alpha=.2)
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    st.pyplot(fig)
+    plt.close(fig)
+
+
 def draw_error_chart(history, tolerance):
     """Plot signed stress difference for each successfully completed iteration."""
     successful = [row for row in history if row.get('difference_kPa') is not None]
@@ -109,6 +129,7 @@ if run and mode.startswith('Calibrate') and strain_min > max_eps:
 if run:
     history, curves = [], []
     placeholder = st.empty()
+    stress_placeholder = st.empty()
     error_placeholder = st.empty()
     hardening_placeholder = st.empty()
     progress = st.progress(0, text='Starting analysis')
@@ -143,6 +164,9 @@ if run:
         row.update(peak_kPa=peak, peak_strain_pct=strain, difference_kPa=diff, status='Completed')
         history.append(row)
         curves.append((iteration, result))
+        with stress_placeholder.container():
+            st.subheader('Stress–strain response')
+            draw_stress_strain_chart(curves, qf)
         with placeholder.container():
             st.write(f'Completed iteration {iteration}: peak **{peak:.2f} kPa** at **{strain:.2f}%** strain; difference from target **{diff:+.2f} kPa**.')
         if mode.startswith('Calibrate'):
@@ -169,6 +193,7 @@ if run:
             params['delta1'] += 25; params['Ko'] += 2; params['Kinf'] -= 5
         for key in ('Kinf', 'Ko', 'delta1'):
             params[key] = max(0.0, min(params[key], 1000.0))
+    stress_placeholder.empty()
     error_placeholder.empty()
     hardening_placeholder.empty()
     progress.progress(1.0, text='Analysis finished')
@@ -188,13 +213,8 @@ if 'results' in st.session_state:
         b.metric('Peak axial strain', f"{last['peak_strain']:.2f}%")
         c1.metric('Difference from target', f"{last['peak'] - data['qf']:+.2f} kPa")
         st.caption(f"Last successful parameters: Kinf = {used['Kinf']:.2f} kPa, Ko = {used['Ko']:.2f} kPa, δ₁ = {used['delta1']:.2f}")
-        fig, ax = plt.subplots(figsize=(9, 4.8))
-        for it, curve in data['curves'][-10:]:
-            ax.plot(curve['strain'], curve['stress'], alpha=1 if it == iteration else .35, linewidth=2 if it == iteration else 1, label=f'Iteration {it}')
-        ax.axhline(data['qf'], color='#cc4b4b', linestyle='--', label='Mohr–Coulomb target')
-        ax.set(xlabel='Axial strain (%)', ylabel='Deviatoric stress (kPa)')
-        ax.grid(alpha=.2); ax.legend(fontsize=8); fig.tight_layout()
-        st.pyplot(fig); plt.close(fig)
+        st.subheader('Stress–strain response')
+        draw_stress_strain_chart(data['curves'], data['qf'])
         curve_df = pd.DataFrame({'axial_strain_pct': last['strain'], 'deviatoric_stress_kPa': last['stress']})
         st.download_button('Download last stress–strain curve (CSV)', curve_df.to_csv(index=False).encode(), 'stress_strain.csv', 'text/csv')
     if data['mode'].startswith('Calibrate') and any(row.get('difference_kPa') is not None for row in data['history']):
