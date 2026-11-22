@@ -10,6 +10,15 @@ import pandas as pd
 import streamlit as st
 
 st.set_page_config(page_title='Drucker–Prager calibration', page_icon='🧱', layout='wide')
+st.markdown("""
+<style>
+html, body, [data-testid="stAppViewContainer"], [data-testid="stSidebar"],
+[data-testid="stAppViewContainer"] *, [data-testid="stSidebar"] * {
+    font-family: "Courier New", Courier, monospace !important;
+}
+</style>
+""", unsafe_allow_html=True)
+plt.rcParams["font.family"] = ["Courier New", "Liberation Mono", "DejaVu Sans Mono"]
 st.title('Drucker–Prager triaxial calibration')
 st.caption('Single 3D SSPbrick · OpenSeesPy · Units: kPa, m, Mg/m³')
 
