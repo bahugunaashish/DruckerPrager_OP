@@ -71,46 +71,42 @@ def draw_stress_strain_chart(curves, target):
     plt.close(fig)
 
 
-def draw_error_chart(history, tolerance):
-    """Plot signed stress difference for each successfully completed iteration."""
-    successful = [row for row in history if row.get('difference_kPa') is not None]
-    if not successful:
-        return
-    fig, ax = plt.subplots(figsize=(9, 3.8))
-    ax.plot([row['iteration'] for row in successful],
-            [row['difference_kPa'] for row in successful], marker='o', markersize=3, linewidth=1.4)
-    ax.axhline(0, color='#333333', linewidth=0.9)
-    ax.axhspan(-tolerance, tolerance, color='#45a36b', alpha=0.18, label=f'Stress tolerance ±{tolerance:g} kPa')
-    ax.set(xlabel='Iteration', ylabel='Peak stress − target stress (kPa)')
-    ax.grid(alpha=.2)
-    ax.legend(fontsize=8)
-    fig.tight_layout()
-    st.pyplot(fig)
-    plt.close(fig)
-
-
-def draw_hardening_chart(history):
-    """Show the parameters used in each attempted iteration."""
+def draw_iteration_charts(history, tolerance):
+    """Show stress difference and hardening values in four square plots."""
     if not history:
         return
-    iterations = [row['iteration'] for row in history]
-    fig, axes = plt.subplots(3, 1, figsize=(9, 6.5), sharex=True)
-    for ax, (key, label, color) in zip(axes, [
-        ('Kinf', 'Kinf (kPa)', '#2563a6'),
-        ('Ko', 'Ko (kPa)', '#d07828'),
-        ('delta1', 'δ₁', '#27805c'),
-    ]):
-        values = [row[key] for row in history]
-        ax.plot(iterations, values, color=color, marker='o', markersize=2.5, linewidth=1.2)
-        failed = [row for row in history if row['status'] == 'Analysis failed']
+    fig, axes = plt.subplots(2, 2, figsize=(10, 10), constrained_layout=True)
+    error_ax = axes[0, 0]
+    successful = [row for row in history if row.get('difference_kPa') is not None]
+    if successful:
+        error_ax.plot([row['iteration'] for row in successful],
+                      [row['difference_kPa'] for row in successful],
+                      color='#2563a6', marker='o', markersize=3, linewidth=1.2)
+    error_ax.axhline(0, color='#333333', linewidth=0.9)
+    error_ax.axhspan(-tolerance, tolerance, color='#45a36b', alpha=0.18,
+                     label=f'Tolerance ±{tolerance:g} kPa')
+    error_ax.set_title('Stress difference')
+    error_ax.set_ylabel('Peak − target stress (kPa)')
+    error_ax.legend(fontsize=8)
+    failed = [row for row in history if row['status'] == 'Analysis failed']
+    for ax, (key, label, color) in zip(
+        [axes[0, 1], axes[1, 0], axes[1, 1]],
+        [('Kinf', 'Kinf (kPa)', '#2563a6'),
+         ('Ko', 'Ko (kPa)', '#d07828'),
+         ('delta1', 'δ₁', '#27805c')],
+    ):
+        ax.plot([row['iteration'] for row in history], [row[key] for row in history],
+                color=color, marker='o', markersize=3, linewidth=1.2)
         if failed:
             ax.scatter([row['iteration'] for row in failed], [row[key] for row in failed],
                        marker='x', color='#bd3131', s=30, zorder=3, label='Failed analysis')
             ax.legend(fontsize=8)
+        ax.set_title(label)
         ax.set_ylabel(label)
+    for ax in axes.flat:
+        ax.set_xlabel('Iteration')
+        ax.set_box_aspect(1)
         ax.grid(alpha=.2)
-    axes[-1].set_xlabel('Iteration')
-    fig.tight_layout()
     st.pyplot(fig)
     plt.close(fig)
 
@@ -130,8 +126,7 @@ if run:
     history, curves = [], []
     placeholder = st.empty()
     stress_placeholder = st.empty()
-    error_placeholder = st.empty()
-    hardening_placeholder = st.empty()
+    iteration_placeholder = st.empty()
     progress = st.progress(0, text='Starting analysis')
     status = 'Iteration limit reached without satisfying both calibration criteria.'
     limit = int(max_iter) if mode.startswith('Calibrate') else 1
@@ -150,9 +145,9 @@ if run:
             row.update(peak_kPa=None, peak_strain_pct=None, difference_kPa=None, status='Analysis failed')
             history.append(row)
             if mode.startswith('Calibrate'):
-                with hardening_placeholder.container():
-                    st.subheader('Hardening parameters by iteration')
-                    draw_hardening_chart(history)
+                with iteration_placeholder.container():
+                    st.subheader('Calibration history')
+                    draw_iteration_charts(history, stress_tolerance)
             if mode == 'Run one simulation':
                 status = 'Simulation failed. Check the inputs and try again.'
                 break
@@ -170,12 +165,9 @@ if run:
         with placeholder.container():
             st.write(f'Completed iteration {iteration}: peak **{peak:.2f} kPa** at **{strain:.2f}%** strain; difference from target **{diff:+.2f} kPa**.')
         if mode.startswith('Calibrate'):
-            with error_placeholder.container():
-                st.subheader('Stress difference by iteration')
-                draw_error_chart(history, stress_tolerance)
-            with hardening_placeholder.container():
-                st.subheader('Hardening parameters by iteration')
-                draw_hardening_chart(history)
+            with iteration_placeholder.container():
+                st.subheader('Calibration history')
+                draw_iteration_charts(history, stress_tolerance)
         if mode == 'Run one simulation':
             status = 'Single simulation completed.'
             break
@@ -194,8 +186,7 @@ if run:
         for key in ('Kinf', 'Ko', 'delta1'):
             params[key] = max(0.0, min(params[key], 1000.0))
     stress_placeholder.empty()
-    error_placeholder.empty()
-    hardening_placeholder.empty()
+    iteration_placeholder.empty()
     progress.progress(1.0, text='Analysis finished')
     st.session_state['results'] = dict(status=status, history=history, curves=curves, qf=qf, inputs=dict(E=E, nu=nu, c=c, phi=phi, patm=patm, mDen=mDen, Kinf=Kinf, Ko=Ko, delta1=delta1, H=H, theta=theta, delta2=delta2, max_eps=max_eps, steps=steps, strain_min=strain_min, strain_max=strain_max, stress_tolerance=stress_tolerance, max_iter=int(max_iter)), mode=mode)
 
@@ -217,14 +208,10 @@ if 'results' in st.session_state:
         draw_stress_strain_chart(data['curves'], data['qf'])
         curve_df = pd.DataFrame({'axial_strain_pct': last['strain'], 'deviatoric_stress_kPa': last['stress']})
         st.download_button('Download last stress–strain curve (CSV)', curve_df.to_csv(index=False).encode(), 'stress_strain.csv', 'text/csv')
-    if data['mode'].startswith('Calibrate') and any(row.get('difference_kPa') is not None for row in data['history']):
-        st.subheader('Stress difference by iteration')
-        st.caption(f"Positive values exceed the target; negative values fall below it. Failed iterations are omitted. Convergence also requires a peak strain from {data['inputs'].get('strain_min', 2):g}% to {data['inputs'].get('strain_max', 6):g}%.")
-        draw_error_chart(data['history'], data['inputs'].get('stress_tolerance', 1.0))
     if data['mode'].startswith('Calibrate') and data['history']:
-        st.subheader('Hardening parameters by iteration')
-        st.caption('Values used in each attempted simulation. Red crosses mark failed analyses.')
-        draw_hardening_chart(data['history'])
+        st.subheader('Calibration history')
+        st.caption('Stress differences omit failed analyses. Red crosses mark the parameters used in failed analyses.')
+        draw_iteration_charts(data['history'], data['inputs'].get('stress_tolerance', 1.0))
     if data['history']:
         st.subheader('Iteration history')
         table = pd.DataFrame(data['history'])
