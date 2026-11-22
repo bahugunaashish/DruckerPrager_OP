@@ -13,7 +13,8 @@ st.set_page_config(page_title='Drucker–Prager calibration', page_icon='🧱', 
 st.markdown("""
 <style>
 html, body, [data-testid="stAppViewContainer"], [data-testid="stSidebar"],
-[data-testid="stAppViewContainer"] *, [data-testid="stSidebar"] * {
+[data-testid="stAppViewContainer"] *:not([data-testid="stIconMaterial"]):not([class*="material-symbols"]):not([class*="material-icons"]),
+[data-testid="stSidebar"] *:not([data-testid="stIconMaterial"]):not([class*="material-symbols"]):not([class*="material-icons"]) {
     font-family: "Courier New", Courier, monospace !important;
 }
 </style>
@@ -30,7 +31,7 @@ with st.sidebar:
         nu = st.number_input('Poisson’s ratio ν', min_value=0.0, max_value=0.499, value=0.3, format='%.3f')
         c = st.number_input('Cohesion c (kPa)', min_value=0.0, value=4.5)
         phi = st.number_input('Friction angle φ (degrees)', min_value=0.01, max_value=89.99, value=35.0)
-        patm = st.number_input('Confining pressure p (kPa)', min_value=0.01, value=100.0, help='Also passed as the OpenSees material atmospheric pressure, as in the original model.')
+        patm = st.number_input('Confining pressure p (kPa)', min_value=0.01, value=100.0, help='Confining pressure at which the test is conducted.')
         mDen = st.number_input('Mass density (Mg/m³)', min_value=0.0, value=1.964, format='%.3f')
         st.subheader('Hardening parameters')
         Kinf = st.number_input('Kinf (kPa)', min_value=0.0, max_value=1000.0, value=100.0)
