@@ -207,6 +207,18 @@ The Drucker-Prager model's yield surface is matched to the Mohr-Coulomb surface 
 
 ---
 
+## Disclaimer
+
+This software is provided **“as is”**, without warranty of any kind, express or implied, including warranties of accuracy, reliability, fitness for a particular purpose, or suitability for engineering design.
+
+The application uses OpenSeesPy simulations and a rule-based procedure to estimate Drucker–Prager material parameters. The results depend on the input properties, model assumptions, numerical settings, and convergence behavior. A match to the specified peak stress and strain criteria does not guarantee that the complete soil response is accurately represented.
+
+Users are responsible for verifying the inputs, assessing the suitability of the model, and independently reviewing and validating the results before using them in research, design, analysis, or other applications. The software is not a substitute for professional engineering judgment.
+
+To the fullest extent permitted by applicable law, the author and contributors are not liable for any loss, damage, or consequences arising from the use of, inability to use, or reliance on this software or its results.
+
+---
+
 ## 📄 License
 
 MIT License — free to use, modify, and distribute with attribution.
