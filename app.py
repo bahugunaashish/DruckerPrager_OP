@@ -59,10 +59,11 @@ def draw_stress_strain_chart(curves, target):
     fig, ax = plt.subplots(figsize=(9, 4.8))
     for it, curve in curves[-10:]:
         ax.plot(curve['strain'], curve['stress'],
-                alpha=1 if it == latest_iteration else .35,
-                linewidth=2 if it == latest_iteration else 1,
-                label=f'Iteration {it}')
-    ax.axhline(target, color='#cc4b4b', linestyle='--', label='Mohr–Coulomb target')
+                color='#c62828' if it == latest_iteration else '#8a9aaa',
+                alpha=1 if it == latest_iteration else .4,
+                linewidth=3 if it == latest_iteration else 1,
+                label=f'Iteration {it}' + (' (latest)' if it == latest_iteration else ''))
+    ax.axhline(target, color='#333333', linestyle='--', label='Mohr–Coulomb target')
     ax.set(xlabel='Axial strain (%)', ylabel='Deviatoric stress (kPa)')
     ax.grid(alpha=.2)
     ax.legend(fontsize=8)
